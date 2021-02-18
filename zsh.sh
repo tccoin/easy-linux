@@ -1,6 +1,5 @@
-sudo apt install zsh
-zsh --version
-sh -c "$(wget -O- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
+sudo apt-get install zsh
+echo -e 'n' | sh -c "$(wget -O- https://raw.githubusercontent.com/ohmyzsh/ohmyzsh/master/tools/install.sh)"
 git clone https://github.com/powerline/fonts.git
 cd fonts
 ./install.sh
