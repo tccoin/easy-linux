@@ -6,3 +6,4 @@ git clone https://github.com/zsh-users/zsh-syntax-highlighting.git ~/.oh-my-zsh/
 echo "source ${ZSH_CUSTOM:-~/.oh-my-zsh/custom}/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh" >> ${ZDOTDIR:-$HOME}/.zshrc
 cp conf/.zshrc ~/.zshrc
 cp conf/.p10k.zsh ~/.p10k.zsh
+chsh -s $(which zsh)
