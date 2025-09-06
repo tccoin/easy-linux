@@ -1,0 +1,13 @@
+[Unit]
+Description=TurboVNC server on display :2
+After=network.target syslog.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStartPre=/bin/sh -c '/opt/TurboVNC/bin/vncserver -kill %i > /dev/null 2>&1 || :'
+ExecStart=/sbin/runuser -l USER -c "/opt/TurboVNC/bin/vncserver %i -alwaysshared -geometry 2400x1350 -depth 24 -fg"
+#ExecStop=/sbin/runuser -l USER -c "/opt/TurboVNC/bin/vncserver -kill %i"
+
+[Install]
+WantedBy=multi-user.target

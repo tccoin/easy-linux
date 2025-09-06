@@ -1,0 +1,17 @@
+[Unit]
+Description=noVNC Web Access for TurboVNC :%i
+After=turbovnc@%i.service
+Requires=turbovnc@%i.service
+Wants=turbovnc@%i.service
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=junzhewu
+ExecStartPre=/bin/sh -c 'pkill -f "websockify --web /usr/share/novnc %((5900+%i))" || :'
+ExecStart=/usr/bin/websockify --web=/usr/share/novnc $((6080+%i)) localhost:$((5900+%i))
+Restart=on-failure
+
+[Install]
+WantedBy=multi-user.target
