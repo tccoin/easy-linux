@@ -1,0 +1,8 @@
+{
+  mode: "peer",
+  connect: {
+    endpoints: [
+      "tcp/0.0.0.0:5001"
+    ]
+  }
+}
