@@ -13,5 +13,8 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" &> /dev/null && pwd)
 # ros2 topic info /spot/cmd_vel --verbose --no-daemon
 # cd /root/software-package/easy-linux/lighthouse/ && ROS_DISTRO=humble ./zenoh-bridge-ros2dds -c zenoh_client_config.json5
 
-tmux new-session -d -s zenoh_bridge
-tmux send-keys -t zenoh_bridge "cd $SCRIPT_DIR && ROS_DISTRO=humble ./zenoh-bridge-ros2dds -c zenoh_client_config.json5" C-m
+# tmux new-session -d -s zenoh_bridge
+# tmux send-keys -t zenoh_bridge "cd $SCRIPT_DIR && ROS_DISTRO=humble ./zenoh-bridge-ros2dds -c zenoh_client_config.json5" C-m
+
+ssh -L 0.0.0.0:5001:lh1402.arc-ts.umich.edu:5001 junzhewu@lighthouse.arc-ts.umich.edu
+cd /home/junzhewu/Projects/tiamat/easy-linux/lighthouse && ROS_DISTRO=humble ./zenoh-bridge-ros2dds -c zenoh_client_config.json5
