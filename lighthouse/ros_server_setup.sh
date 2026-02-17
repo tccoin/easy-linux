@@ -11,4 +11,4 @@ SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]:-$0}")" &> /dev/null && pwd)
 tmux new-session -d -s zenoh_bridge
 tmux send-keys -t zenoh_bridge "cd $SCRIPT_DIR && ROS_DISTRO=humble ./zenoh-bridge-ros2dds -c zenoh_server_config.json5" C-m
 
-# cd /home/junzhewu/junzhe/Projects/easy-linux/lighthouse/ && ROS_DISTRO=humble ./zenoh-bridge-ros2dds -c zenoh_server_config.json5
+cd /home/junzhewu/junzhe/Projects/easy-linux/lighthouse/ && ROS_DISTRO=humble ./zenoh-bridge-ros2dds -c zenoh_server_config.json5
