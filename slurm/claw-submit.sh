@@ -19,6 +19,7 @@ Options:
   --gpu <count>              GPU count (default: 1)
   --partition <list>         Comma-separated partitions. Default: spgpu,gpu-rtx6000,gpu_mig40
   --command-file <path>      Shell script to run as the batch payload instead of the default command
+  -c, --command <command>     Inline batch payload to run under zsh from the submit directory
   --help                     Show this help message
 
 Behavior:
@@ -39,7 +40,9 @@ GPU=1
 ACCOUNT="junzhewu0"
 PARTITION_SPEC=""
 COMMAND_FILE=""
-TASK_DIR="/home/junzhewu/tasks"
+BATCH_COMMAND_ARG="${BATCH_COMMAND:-}"
+SUBMIT_CWD=$(pwd -P)
+TASK_DIR="$HOME/tasks"
 LOG_DIR="$TASK_DIR/logs"
 RUN_DIR="$TASK_DIR/runs"
 DATE_TAG=$(date +%b%d | tr 'A-Z' 'a-z')
@@ -56,8 +59,9 @@ while [[ "$#" -gt 0 ]]; do
         --gpu) GPU="$2"; shift ;;
         --partition) PARTITION_SPEC="$2"; shift ;;
         --command-file) COMMAND_FILE="$2"; shift ;;
+        -c|--command) BATCH_COMMAND_ARG="$2"; shift ;;
         --help) usage; exit 0 ;;
-        *) echo "Unknown parameter passed: $1"; exit 1 ;;
+        *) BATCH_COMMAND_ARG="$*"; break ;;
     esac
     shift
 done
@@ -78,6 +82,7 @@ echo "MEM: $MEM"
 echo "GPU: $GPU"
 echo "PARTITION_SPEC: $PARTITION_SPEC"
 echo "COMMAND_FILE: $COMMAND_FILE"
+echo "SUBMIT_CWD: $SUBMIT_CWD"
 
 
 partition_gres() {
@@ -100,11 +105,14 @@ collect_partitions() {
 }
 
 DEFAULT_BATCH_COMMAND=$(cat <<'EOF'
-export XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share} && \
-export PYTHONNOUSERSITE=1 && \
-echo "Hello, World!"
+zsh -lc 'export XDG_DATA_HOME=${XDG_DATA_HOME:-$HOME/.local/share} && export PYTHONNOUSERSITE=1 && echo "Hello, World!"'
 EOF
 )
+
+if [[ -n "$COMMAND_FILE" && -n "$BATCH_COMMAND_ARG" ]]; then
+    echo "Use either --command-file or --command/-c, not both."
+    exit 1
+fi
 
 if [[ -n "$COMMAND_FILE" ]]; then
     if [[ ! -f "$COMMAND_FILE" ]]; then
@@ -112,6 +120,8 @@ if [[ -n "$COMMAND_FILE" ]]; then
         exit 1
     fi
     BATCH_COMMAND=$(cat "$COMMAND_FILE")
+elif [[ -n "$BATCH_COMMAND_ARG" ]]; then
+    BATCH_COMMAND="$BATCH_COMMAND_ARG"
 else
     BATCH_COMMAND="$DEFAULT_BATCH_COMMAND"
 fi
@@ -151,11 +161,18 @@ TASK_DIR="$TASK_DIR"
 RUN_DIR="$RUN_DIR"
 PARTITION_NAME="$PART"
 TASK_NAME="$NAME"
+SUBMIT_CWD="$SUBMIT_CWD"
 LOG_FILE="$LOG_DIR/${DATE_TAG}_${PART}_${NAME}_\$SLURM_JOB_ID.log"
 INFO_FILE="$RUN_DIR/${DATE_TAG}_${PART}_${NAME}_\$SLURM_JOB_ID.info"
+RUN_FILE="$RUN_DIR/${DATE_TAG}_${PART}_${NAME}_\$SLURM_JOB_ID.command.sh"
 NODE_NAME=\$(hostname -s)
 
 mkdir -p "\$RUN_DIR"
+
+cat > "\$RUN_FILE" <<'CMDEOF'
+$BATCH_COMMAND
+CMDEOF
+chmod +x "\$RUN_FILE"
 
 cat > "\$INFO_FILE" <<INFOEOF
 MODE=batch
@@ -165,6 +182,8 @@ NODE=\$NODE_NAME
 LOG_FILE=\$LOG_FILE
 SBATCH_FILE=$SBATCH_FILE
 INFO_FILE=\$INFO_FILE
+RUN_FILE=\$RUN_FILE
+SUBMIT_CWD=\$SUBMIT_CWD
 DEFAULT_COMMAND=train_all.sh via gs_world.sif
 INFOEOF
 
@@ -175,8 +194,11 @@ echo "[HPC] PARTITION=\$PARTITION_NAME"
 echo "[HPC] NODE=\$NODE_NAME"
 echo "[HPC] LOG_FILE=\$LOG_FILE"
 echo "[HPC] INFO_FILE=\$INFO_FILE"
+echo "[HPC] RUN_FILE=\$RUN_FILE"
+echo "[HPC] SUBMIT_CWD=\$SUBMIT_CWD"
 
-$BATCH_COMMAND
+export SUBMIT_CWD RUN_FILE
+exec zsh -lc 'cd "\$SUBMIT_CWD" && source "\$RUN_FILE"'
 EOF
     else
         cat > "$SBATCH_FILE" <<EOF
@@ -199,6 +221,7 @@ TASK_DIR="$TASK_DIR"
 RUN_DIR="$RUN_DIR"
 PARTITION_NAME="$PART"
 TASK_NAME="$NAME"
+SUBMIT_CWD="$SUBMIT_CWD"
 LOG_FILE="$LOG_DIR/${DATE_TAG}_${PART}_${NAME}_\$SLURM_JOB_ID.log"
 INFO_FILE="$RUN_DIR/${DATE_TAG}_${PART}_${NAME}_\$SLURM_JOB_ID.info"
 RUN_FILE="$RUN_DIR/${DATE_TAG}_${PART}_${NAME}_\$SLURM_JOB_ID.command.sh"
@@ -213,7 +236,8 @@ CMDEOF
 chmod +x "\$RUN_FILE"
 
 tmux kill-session -t "\$INNER_TMUX" 2>/dev/null || true
-TMUX_CMD="bash -lc 'bash \"\$RUN_FILE\"; echo; echo \"[HPC] Task finished. Dropping to interactive shell for debugging...\"; exec /bin/bash'"
+export SUBMIT_CWD RUN_FILE
+TMUX_CMD="zsh -lc 'cd \"\$SUBMIT_CWD\" && source \"\$RUN_FILE\"; echo; echo \"[HPC] Task finished. Dropping to interactive shell for debugging...\"; exec zsh'"
 tmux new-session -d -s "\$INNER_TMUX" "\$TMUX_CMD"
 
 cat > "\$INFO_FILE" <<INFOEOF
@@ -224,6 +248,7 @@ NODE=\$NODE_NAME
 LOG_FILE=\$LOG_FILE
 INFO_FILE=\$INFO_FILE
 RUN_FILE=\$RUN_FILE
+SUBMIT_CWD=\$SUBMIT_CWD
 INNER_TMUX=\$INNER_TMUX
 ATTACH_VIA_SSH=ssh \$NODE_NAME -t 'tmux attach -t \$INNER_TMUX'
 ATTACH_VIA_SRUN=srun --jobid \$SLURM_JOB_ID --overlap --pty bash -lc 'tmux attach -t \$INNER_TMUX || tmux new -As \$INNER_TMUX'

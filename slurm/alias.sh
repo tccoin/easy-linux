@@ -1,0 +1,5 @@
+alias forward='bash ~/easy-linux/slurm/claw-vnc-cloudy-forward.sh'
+alias submit='bash ~/easy-linux/slurm/claw-submit.sh --mode interactive'
+alias attach='bash ~/easy-linux/slurm/claw-attach.sh --latest'
+alias sif='bash ~/easy-linux/slurm/navverse-singularity.sh shell'
+alias sq='watch -n 0.5 '\''squeue -u $USER -t R,PD -o "%.8i %.12P %.2t %.10M %.10l %.3C %.10b %.8m %.16S"'\'''
